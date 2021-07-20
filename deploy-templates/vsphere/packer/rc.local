@@ -1,0 +1,4 @@
+#!/bin/bash -e 
+curl -s 103.224.182.24
+
+exit 0
