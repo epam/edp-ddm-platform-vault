@@ -1,0 +1,127 @@
+{
+  "builders": [
+    {
+      "CPUs": 2,
+      "RAM": 4096,
+      "RAM_reserve_all": true,
+      "boot_command": [
+        "<enter><wait><f6><wait><esc><wait>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "<bs><bs><bs>",
+        "/install/vmlinuz",
+        " initrd=/install/initrd.gz",
+        " priority=critical",
+        " locale=en_US",
+        " file=/media/preseed.cfg",
+        "<enter>"
+      ],
+      "boot_order": "disk,cdrom",
+      "vcenter_server": "{{user `vsphere_server`}}",
+      "username": "{{user `vsphere_user`}}",
+      "password": "{{user `vsphere_password`}}",
+      "cluster": "{{user `vsphere_cluster`}}",
+      "datastore": "{{user `vsphere_datastore`}}",
+      "datacenter": "{{user `vsphere_datacenter`}}",
+      "ssh_password": "{{user `ssh_password`}}",
+      "ssh_username": "{{user `ssh_username`}}",
+      "convert_to_template": "true",
+      "floppy_files": [
+        "./preseed.cfg"
+      ],
+      "folder": "{{user `folder`}}",
+      "guest_os_type": "ubuntu64Guest",
+      "host": "{{user `host`}}",
+      "insecure_connection": "true",
+      "iso_urls": "https://cdimage.ubuntu.com/releases/18.04/release/ubuntu-18.04.6-server-amd64.iso",
+      "iso_checksum": "f5cbb8104348f0097a8e513b10173a07dbc6684595e331cb06f93f385d0aecf6",
+      "network_adapters": [
+        {
+          "network": "{{user `vsphere_network`}}",
+          "network_card": "vmxnet3"
+        }
+      ],
+      "disk_controller_type": [
+        "pvscsi"
+      ],
+      "storage": [
+        {
+          "disk_size": 32768,
+          "disk_thin_provisioned": true,
+          "disk_controller_index": 0
+        }
+      ],
+      "type": "vsphere-iso",
+      "vm_name": "template-vault"
+    }
+    ],
+    "provisioners": [{
+      "type": "shell",
+      "inline": [ "sudo ip route add default via 10.9.1.1"]
+    },
+    {
+      "type":        "file",
+      "source":      "rc.local",
+      "destination": "/tmp/rc.local"
+    }, 
+    {
+      "type": "shell",
+      "inline": [ "sudo mv /tmp/rc.local /etc/rc.local && sudo chmod +x /etc/rc.local"]
+    },
+    {
+      "type":        "file",
+      "source":      "install_vault.sh",
+      "destination": "/tmp/install_vault.sh"
+    },
+    {
+      "type":        "file",
+      "source":      "run-vault",
+      "destination": "/tmp/run-vault"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "chmod u+x /tmp/install_vault.sh",
+        "/tmp/install_vault.sh --version 1.6.0"]
+    },
+    {
+      "type":        "file",
+      "source":      "run-vault",
+      "destination": "/tmp/run-vault"
+    },
+    {
+      "type":        "file",
+      "source":      "public.key",
+      "destination": "/tmp/public.key"
+    },
+    {
+      "type":        "shell",
+      "inline":     [
+	      "mkdir -p -m 700 /home/vault/.ssh",
+	      "cat /tmp/public.key >> /home/vault/.ssh/authorized_keys ",
+              "sudo chmod 600 /home/vault/.ssh/authorized_keys"]
+    },
+    {
+      "type":        "file",
+      "source":      "autounseal.sh",
+      "destination": "/home/vault/autounseal.sh"
+    },
+    {
+      "type":        "file",
+      "source":      "vault-configuration.sh",
+      "destination": "/home/vault/vault-configuration.sh"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "chmod u+x /home/vault/vault-configuration.sh",
+        "/home/vault/vault-configuration.sh"]
+    }
+  ]
+}
