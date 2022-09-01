@@ -7,9 +7,11 @@
   "vsphere_network": "",
   "vsphere_datastore":"",
   "vsphere_datacenter": "",
+  "vsphere_resource_pool": "",
+  "vsphere_folder": "",
+  "vsphere_network_gateway": "",
   "ssh_username": "vault",
   "ssh_password": "",
   "ssh_fullname": "vault",
-  "ssh_private_key_file": "./private.key",
-  "folder": "_Templates"
+  "ssh_private_key_file": "./private.key"
 }
