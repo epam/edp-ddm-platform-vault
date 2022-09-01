@@ -30,11 +30,16 @@ data "vsphere_virtual_machine" "template" {
   datacenter_id = "${data.vsphere_datacenter.dc.id}"
 }
 
+data "vsphere_resource_pool" "pool" {
+  name          = "${var.vsphere_cluster}/Resources/${var.vsphere_resource_pool}"
+  datacenter_id = "${data.vsphere_datacenter.dc.id}"
+}
+
 resource "vsphere_virtual_machine" "vm" {
   name             = "platform-vault-${var.cluster_name}"
-  resource_pool_id = "${data.vsphere_compute_cluster.cluster.resource_pool_id}"
+  resource_pool_id = "${data.vsphere_resource_pool.pool.id}"
   datastore_id     = "${data.vsphere_datastore.datastore.id}"
-  folder           = var.cluster_name
+  folder           = "${var.vsphere_datacenter}/vm/${var.vsphere_folder}"
 
   num_cpus = 2
   memory   = 2048
@@ -66,7 +71,7 @@ customize {
         ipv4_netmask = 24
       }
 
-      ipv4_gateway = "10.9.1.1"
+      ipv4_gateway = "${var.vsphere_network_gateway}"
     }
   }
 
@@ -100,6 +105,3 @@ module "files" {
   command = "sleep 80 && ssh -o \"StrictHostKeyChecking no\" vault@${var.vsphere_vault_instance_ip} -i packer/private.key cat /opt/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-"
   depends_on = [null_resource.vault_init]
 }
-
-
-

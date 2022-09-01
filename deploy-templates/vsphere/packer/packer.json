@@ -1,7 +1,7 @@
 {
   "builders": [
     {
-      "CPUs": 2,
+      "CPUs": 4,
       "RAM": 4096,
       "RAM_reserve_all": true,
       "boot_command": [
@@ -29,13 +29,14 @@
       "cluster": "{{user `vsphere_cluster`}}",
       "datastore": "{{user `vsphere_datastore`}}",
       "datacenter": "{{user `vsphere_datacenter`}}",
+      "resource_pool": "{{user `vsphere_resource_pool`}}",
+      "folder": "{{user `vsphere_folder`}}",
       "ssh_password": "{{user `ssh_password`}}",
       "ssh_username": "{{user `ssh_username`}}",
       "convert_to_template": "true",
       "floppy_files": [
         "./preseed.cfg"
       ],
-      "folder": "{{user `folder`}}",
       "guest_os_type": "ubuntu64Guest",
       "host": "{{user `host`}}",
       "insecure_connection": "true",
@@ -60,68 +61,76 @@
       "type": "vsphere-iso",
       "vm_name": "template-vault"
     }
-    ],
-    "provisioners": [{
+  ],
+  "provisioners": [
+    {
       "type": "shell",
-      "inline": [ "sudo ip route add default via 10.9.1.1"]
+      "inline": [
+        "sudo ip route add default via {{user `vsphere_network_gateway`}}"
+      ]
     },
     {
-      "type":        "file",
-      "source":      "rc.local",
+      "type": "file",
+      "source": "rc.local",
       "destination": "/tmp/rc.local"
-    }, 
-    {
-      "type": "shell",
-      "inline": [ "sudo mv /tmp/rc.local /etc/rc.local && sudo chmod +x /etc/rc.local"]
     },
     {
-      "type":        "file",
-      "source":      "install_vault.sh",
+      "type": "shell",
+      "inline": [
+        "sudo mv /tmp/rc.local /etc/rc.local && sudo chmod +x /etc/rc.local"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "install_vault.sh",
       "destination": "/tmp/install_vault.sh"
     },
     {
-      "type":        "file",
-      "source":      "run-vault",
+      "type": "file",
+      "source": "run-vault",
       "destination": "/tmp/run-vault"
     },
     {
       "type": "shell",
       "inline": [
         "chmod u+x /tmp/install_vault.sh",
-        "/tmp/install_vault.sh --version 1.6.0"]
+        "/tmp/install_vault.sh --version 1.6.0"
+      ]
     },
     {
-      "type":        "file",
-      "source":      "run-vault",
+      "type": "file",
+      "source": "run-vault",
       "destination": "/tmp/run-vault"
     },
     {
-      "type":        "file",
-      "source":      "public.key",
+      "type": "file",
+      "source": "public.key",
       "destination": "/tmp/public.key"
     },
     {
-      "type":        "shell",
-      "inline":     [
-	      "mkdir -p -m 700 /home/vault/.ssh",
-	      "cat /tmp/public.key >> /home/vault/.ssh/authorized_keys ",
-              "sudo chmod 600 /home/vault/.ssh/authorized_keys"]
+      "type": "shell",
+      "inline": [
+        "mkdir -p -m 700 /home/vault/.ssh",
+        "cat /tmp/public.key >> /home/vault/.ssh/authorized_keys ",
+        "sudo chmod 600 /home/vault/.ssh/authorized_keys"
+      ]
     },
     {
-      "type":        "file",
-      "source":      "autounseal.sh",
+      "type": "file",
+      "source": "autounseal.sh",
       "destination": "/home/vault/autounseal.sh"
     },
     {
-      "type":        "file",
-      "source":      "vault-configuration.sh",
+      "type": "file",
+      "source": "vault-configuration.sh",
       "destination": "/home/vault/vault-configuration.sh"
     },
     {
       "type": "shell",
       "inline": [
         "chmod u+x /home/vault/vault-configuration.sh",
-        "/home/vault/vault-configuration.sh"]
+        "/home/vault/vault-configuration.sh"
+      ]
     }
   ]
 }

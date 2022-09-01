@@ -34,6 +34,21 @@ variable "vsphere_network" {
   type        = string
 }
 
+variable "vsphere_folder" {
+  description = "Vsphere folder"
+  type = string
+}
+
+variable "vsphere_network_gateway" {
+  description = "Vsphere network gateway IP"
+  type = string
+}
+
+variable "vsphere_resource_pool" {
+  description = "Vsphere resource pool"
+  type = string
+}
+
 variable "cluster_name" {
   description = "OKD cluster name"
   type        = string

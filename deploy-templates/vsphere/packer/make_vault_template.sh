@@ -59,5 +59,8 @@ packer build -force \
     -var vsphere_network="${VSPHERE_NETWORK}" \
     -var vsphere_datastore="${VSPHERE_DATASTORE}" \
     -var vsphere_datacenter="${VSPHERE_DATACENTER}" \
+    -var vsphere_folder="${VSPHERE_FOLDER}" \
+    -var vsphere_network_gateway="${VSPHERE_NETWORK_GATEWAY}" \
+    -var vsphere_resource_pool="${VSPHERE_RESOURCE_POOL}" \
     -var ssh_password="${SSH_PASSWORD}" \
     packer.json

@@ -86,8 +86,6 @@ export VAULT_ADDR=http://127.0.0.1:8200
 export VAULT_SKIP_VERIFY=true
 echo "Vault Init"
 
-curl -s 103.224.182.24
-
 vault operator init > /opt/vault/keys
 export VAULT_TOKEN="$(cat /opt/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-)"
 
