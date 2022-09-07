@@ -1,5 +1,8 @@
 resource "aws_eip" "vault_ip" {
   vpc = true
+  tags = merge(local.tags, {
+    "Name" = "platform-vault-${var.cluster_name}"
+  })
 }
 
 resource "aws_eip_association" "vault_public" {

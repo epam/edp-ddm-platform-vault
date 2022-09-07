@@ -1,49 +1,18 @@
-locals {
-  wait_for_cluster_cmd = "timeout ${var.connection_timeout}s bash -c 'while ! wget --no-check-certificate -O - -q $ENDPOINT >/dev/null && exit 0 ; do echo \"Waiting for Vault port 8200 open\"; sleep 15; done'"
-}
-
 resource "aws_kms_key" "vault" {
   description             = "Vault unseal key"
   deletion_window_in_days = 10
 
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-vault-${var.cluster_name}"
+  })
 }
-
-data "aws_nat_gateway" "cluster_ip" {
-  filter {
-    name   = "tag:Name"
-    values = ["${var.cluster_name}-*"]
-  }
-}
-
-data "http" "external_ip" {
-  url = "http://ipv4.icanhazip.com"
-}
-
-data "aws_ami" "ubuntu" {
-  most_recent = "true"
-  owners      = ["099720109477"]
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
 
 resource "aws_instance" "vault" {
 
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t2.micro"
   subnet_id     = aws_subnet.public_subnet.id
-  key_name      = "vault-kms-unseal-${var.cluster_name}"
+  key_name      = aws_key_pair.main.key_name
   monitoring    = "false"
 
   vpc_security_group_ids = [
@@ -54,52 +23,12 @@ resource "aws_instance" "vault" {
   ebs_optimized        = false
   iam_instance_profile = aws_iam_instance_profile.vault-kms-unseal.id
 
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-vault-${var.cluster_name}"
+  })
 
   user_data = data.template_file.vault.rendered
 
-}
-
-data "template_file" "vault" {
-  template = file("./scripts/userdata.tpl")
-
-  vars = {
-    vault_domain            = "platform-vault-${var.cluster_name}.${data.aws_route53_zone.root_zone.name}"
-    kms_key                 = aws_kms_key.vault.id
-    vault_url               = var.vault_url
-    aws_region              = var.aws_region
-    vault_local_mount_path  = var.vault_local_mount_path
-    vault_volume_mount_path = var.vault_volume_mount_path
-  }
-}
-
-data "template_file" "backup_and_migrate_data" {
-  template = file("./scripts/backup_and_migrate.tpl")
-
-  vars = {
-    vault_domain            = "platform-vault-${var.cluster_name}.${data.aws_route53_zone.root_zone.name}"
-    kms_key                 = aws_kms_key.vault.id
-    vault_url               = var.vault_url
-    aws_region              = var.aws_region
-    vault_local_mount_path  = var.vault_local_mount_path
-    vault_volume_mount_path = var.vault_volume_mount_path
-  }
-}
-data "template_file" "format_ssh" {
-  template = "connect to host with following command: ssh ubuntu@$${admin} -i private.key"
-
-  vars = {
-    admin = aws_eip.vault_ip.public_ip
-  }
-}
-
-output "connections" {
-  value = <<VAULT
-Connect to Vault via SSH ssh ubuntu@${aws_eip.vault_ip.public_ip} -i private.key
-Vault web interface  https://${aws_route53_record.vault.name}:8200/ui
-VAULT
 }
 
 resource "aws_security_group" "custom" {
@@ -107,24 +36,24 @@ resource "aws_security_group" "custom" {
   description = "Custom vault access"
   vpc_id      = aws_vpc.vpc.id
 
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}-custom"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-vault-${var.cluster_name}-custom"
+  })
 
   # SSH
   ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    cidr_blocks     = var.custom_ingress_rules_cidrs
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = var.custom_ingress_rules_cidrs
   }
 
   # Vault Client Traffic
   ingress {
-    from_port       = 8200
-    to_port         = 8200
-    protocol        = "tcp"
-    cidr_blocks     = var.custom_ingress_rules_cidrs
+    from_port   = 8200
+    to_port     = 8200
+    protocol    = "tcp"
+    cidr_blocks = var.custom_ingress_rules_cidrs
   }
 
   ingress {
@@ -141,9 +70,9 @@ resource "aws_security_group" "vault" {
   description = "vault access"
   vpc_id      = aws_vpc.vpc.id
 
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-vault-${var.cluster_name}"
+  })
 
   ingress {
     from_port   = 8200
@@ -232,6 +161,3 @@ module "files" {
   depends_on = [null_resource.vault_init]
 }
 
-output "vault_root_token" {
-  value = module.files.stdout
-}
