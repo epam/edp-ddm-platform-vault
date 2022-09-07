@@ -1,22 +1,17 @@
-provider "aws" {
-  region = var.aws_region
-}
-
 resource "aws_vpc" "vpc" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
 
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-${var.cluster_name}"
+  })
 }
 
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.vpc.id
-
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-${var.cluster_name}"
+  })
 }
 
 resource "aws_subnet" "public_subnet" {
@@ -25,9 +20,9 @@ resource "aws_subnet" "public_subnet" {
   availability_zone       = var.aws_zone
   map_public_ip_on_launch = true
 
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-${var.cluster_name}"
+  })
 }
 
 resource "aws_route_table" "route" {
@@ -38,14 +33,12 @@ resource "aws_route_table" "route" {
     gateway_id = aws_internet_gateway.gw.id
   }
 
-  tags = {
-    Name = "vault-kms-unseal-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-${var.cluster_name}"
+  })
 }
 
 resource "aws_route_table_association" "route" {
   subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.route.id
 }
-
-

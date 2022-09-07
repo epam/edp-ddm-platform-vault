@@ -30,8 +30,8 @@ List of CIDRs for ingress rules. |
 ["85.223.209.0/24"]
 ```
 EOD
-  type    = list
-  default = ["85.223.209.0/24"]
+  type        = list(any)
+  default     = ["85.223.209.0/24"]
 }
 
 variable "wait_for_cluster_interpreter" {
@@ -111,8 +111,8 @@ The device name to expose to the instance (for example, /dev/sdh or xvdh). |
 See Device Naming on [Linux Instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html#available-ec2-device-names) for more information. |
 **Optional** |
 EOD
-  type    = string
-  default = "/dev/xvdh"
+  type        = string
+  default     = "/dev/xvdh"
 }
 
 variable "vault_local_mount_path" {
@@ -120,8 +120,8 @@ variable "vault_local_mount_path" {
 The local path to be used to mount volume. |
 **Optional** |
 EOD
-  type    = string
-  default = "/apps"
+  type        = string
+  default     = "/apps"
 }
 
 variable "connection_timeout" {
@@ -129,6 +129,11 @@ variable "connection_timeout" {
 The amount of seconds while terraform will attempt to connect to the host to complete null resources. |
 **Optional** |
 EOD
-  type    = number
-  default = 600
+  type        = number
+  default     = 600
+}
+
+variable "tags" {
+  type        = map(any)
+  description = "A map of tags to add to all resources."
 }
