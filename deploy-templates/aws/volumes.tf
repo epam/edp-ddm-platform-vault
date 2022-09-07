@@ -5,9 +5,9 @@ resource "aws_ebs_volume" "vault_ebs" {
   throughput        = var.ebs_throughput
   type              = var.ebs_type
 
-  tags = {
-    Name = "vault-${var.cluster_name}"
-  }
+  tags = merge(local.tags, {
+    "Name" = "platform-vault-${var.cluster_name}"
+  })
 }
 resource "aws_volume_attachment" "vault_ebs" {
   device_name                    = var.vault_volume_mount_path
