@@ -1,6 +1,5 @@
 resource "aws_eip" "vault_ip" {
-  vpc  = true
-  tags = local.tags
+  vpc = true
 }
 
 resource "aws_eip_association" "vault_public" {
