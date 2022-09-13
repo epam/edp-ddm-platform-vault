@@ -72,7 +72,7 @@ The details you can find [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGu
 **Optional** |
 EOD
   type        = number
-  default     = 0
+  default     = 3000
 }
 
 variable "ebs_size" {
