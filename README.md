@@ -89,3 +89,8 @@
 | <a name="output_connections"></a> [connections](#output\_connections) | n/a |
 | <a name="output_vault_root_token"></a> [vault\_root\_token](#output\_vault\_root\_token) | n/a |
 <!-- END_TF_DOCS -->
+
+### License
+
+The platform-vault is Open Source software released under
+the [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
