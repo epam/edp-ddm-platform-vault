@@ -51,7 +51,7 @@ sudo chmod -R 0644 /etc/vault.d/*
 
 sudo systemctl enable vault
 sudo systemctl start vault
-
+sleep 60
 
 echo "* * * * * /etc/vault.d/autounseal.sh" > /home/vault/autounseal.job
 
