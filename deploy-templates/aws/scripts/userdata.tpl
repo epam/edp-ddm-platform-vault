@@ -1,3 +1,22 @@
+Content-Type: multipart/mixed; boundary="//"
+MIME-Version: 1.0
+
+--//
+Content-Type: text/cloud-config; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="cloud-config.txt"
+
+#cloud-config
+cloud_final_modules:
+- [scripts-user, always]
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="userdata.txt"
+
 #!/usr/bin/env bash
 
 logger "Install prerequisites"
@@ -109,20 +128,6 @@ Group=$${GROUP}
 WantedBy=multi-user.target
 EOF
 
-if [[ ! -d "${vault_local_mount_path}/letsencrypt/live/${vault_domain}" ]] && [[ ! -n $(ls -A ${vault_local_mount_path}/letsencrypt/archive/${vault_domain}/{fullchain*,privkey*}.pem) ]] ; then
-  sudo apt-get update
-  sudo apt-get install software-properties-common -y
-  sudo add-apt-repository ppa:certbot/certbot -y
-  sudo apt-get update
-  sudo apt-get install certbot -y
-  sleep 10
-  sudo certbot certonly --standalone -d "${vault_domain}" --register-unsafely-without-email --agree-tos
-  sleep 30
-  sudo cp -r "/etc/letsencrypt" "${vault_local_mount_path}"
-  sudo chmod -R 755 "${vault_local_mount_path}/letsencrypt/live/" && sudo chmod -R 755 "${vault_local_mount_path}/letsencrypt/archive/"
-fi
-
-
 logger "Configuring Vault"
 cat << EOF > /etc/vault.d/vault.hcl
 storage "file" {
@@ -130,9 +135,7 @@ path = "${vault_local_mount_path}/vault"
 }
 listener "tcp" {
 address     = "0.0.0.0:8200"
-tls_disable = 0
-tls_cert_file = "${vault_local_mount_path}/letsencrypt/live/${vault_domain}/fullchain.pem"
-tls_key_file  = "${vault_local_mount_path}/letsencrypt/live/${vault_domain}/privkey.pem"
+tls_disable = 1
 }
 seal "awskms" {
 region     = "${aws_region}"
@@ -148,7 +151,7 @@ sudo chown -R $${USER}:$${GROUP} /etc/vault.d
 sudo chmod -R 0644 /etc/vault.d/*
 
 cat << EOF > /etc/profile.d/vault.sh
-export VAULT_ADDR=https://127.0.0.1:8200
+export VAULT_ADDR=http://127.0.0.1:8200
 export VAULT_SKIP_VERIFY=true
 EOF
 logger "Configuring Encryption policy"
@@ -170,9 +173,9 @@ path "kv/*" {
 EOF
 logger "Starting Vault service"
 systemctl enable vault
-systemctl start vault
+systemctl restart vault
 sleep 60
-export VAULT_ADDR=https://127.0.0.1:8200
+export VAULT_ADDR=http://127.0.0.1:8200
 export VAULT_SKIP_VERIFY=true
 if [ ! -f "${vault_local_mount_path}/vault/token" ]; then
   logger "Initializing Vault"
