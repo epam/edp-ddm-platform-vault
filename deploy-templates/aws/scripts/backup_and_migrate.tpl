@@ -81,9 +81,7 @@ path = "${vault_local_mount_path}/vault"
 }
 listener "tcp" {
 address     = "0.0.0.0:8200"
-tls_disable = 0
-tls_cert_file = "/etc/letsencrypt/live/${vault_domain}/fullchain.pem"
-tls_key_file  = "/etc/letsencrypt/live/${vault_domain}/privkey.pem"
+tls_disable = 1
 }
 seal "awskms" {
 region     = "${aws_region}"
@@ -97,35 +95,4 @@ EOF
     sudo systemctl daemon-reload
     sudo systemctl restart vault
   fi
-fi
-
-if [[ -d "${vault_local_mount_path}/letsencrypt/live/${vault_domain}" ]] && [[ -n $(ls -A ${vault_local_mount_path}/letsencrypt/archive/${vault_domain}/{fullchain*,privkey*}.pem) ]] ; then
-
-  sudo cp -r "/etc/letsencrypt" "${vault_local_mount_path}/"
-  sudo chmod -R 755 "${vault_local_mount_path}/letsencrypt/live/" && sudo chmod -R 755 "${vault_local_mount_path}/letsencrypt/archive/"
-
-  logger "Updating /etc/vault.d/vault.hcl"
-  sudo chmod 666 /etc/vault.d/vault.hcl \
-  && sudo cat << EOF > /etc/vault.d/vault.hcl
-storage "file" {
-path = "${vault_local_mount_path}/vault"
-}
-listener "tcp" {
-address     = "0.0.0.0:8200"
-tls_disable = 0
-tls_cert_file = "${vault_local_mount_path}/letsencrypt/live/${vault_domain}/fullchain.pem"
-tls_key_file  = "${vault_local_mount_path}/letsencrypt/live/${vault_domain}/privkey.pem"
-}
-seal "awskms" {
-region     = "${aws_region}"
-kms_key_id = "${kms_key}"
-}
-ui=true
-EOF
-
-  sudo chown -R $${USER}:$${GROUP} /etc/vault.d
-  sudo chmod -R 0644 /etc/vault.d/*
-  sudo systemctl daemon-reload
-  sudo systemctl restart vault
-
 fi

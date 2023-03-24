@@ -54,7 +54,6 @@ data "template_file" "vault" {
   template = file("./scripts/userdata.tpl")
 
   vars = {
-    vault_domain            = "platform-vault-${var.cluster_name}.${data.aws_route53_zone.root_zone.name}"
     kms_key                 = aws_kms_key.vault.id
     vault_url               = var.vault_url
     aws_region              = var.aws_region
@@ -67,18 +66,10 @@ data "template_file" "backup_and_migrate_data" {
   template = file("./scripts/backup_and_migrate.tpl")
 
   vars = {
-    vault_domain            = "platform-vault-${var.cluster_name}.${data.aws_route53_zone.root_zone.name}"
     kms_key                 = aws_kms_key.vault.id
     vault_url               = var.vault_url
     aws_region              = var.aws_region
     vault_local_mount_path  = var.vault_local_mount_path
     vault_volume_mount_path = var.vault_volume_mount_path
-  }
-}
-data "template_file" "format_ssh" {
-  template = "connect to host with following command: ssh ubuntu@$${admin} -i private.key"
-
-  vars = {
-    admin = aws_eip.vault_ip.public_ip
   }
 }

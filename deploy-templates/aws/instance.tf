@@ -128,7 +128,7 @@ resource "null_resource" "vault_init" {
     command     = local.wait_for_cluster_cmd
     interpreter = var.wait_for_cluster_interpreter
     environment = {
-      ENDPOINT = "https://${aws_route53_record.vault.name}:8200/"
+      ENDPOINT = "http://${aws_eip.vault_ip.public_ip}:8200/"
     }
   }
   depends_on = [null_resource.user_data_status_check]
@@ -160,4 +160,3 @@ module "files" {
   command    = "timeout ${var.connection_timeout}s bash -c 'while ! nc -w 2 ${aws_eip.vault_ip.public_ip} 22 > /dev/null ; do echo \"Waiting for SSH port open\" > /dev/null; sleep 5; done' && ssh -o \"StrictHostKeyChecking no\" -o 'ConnectionAttempts 5' ubuntu@${aws_eip.vault_ip.public_ip} -i private.key cat ${var.vault_local_mount_path}/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-"
   depends_on = [null_resource.vault_init]
 }
-
