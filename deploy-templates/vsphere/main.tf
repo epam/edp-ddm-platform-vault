@@ -1,69 +1,48 @@
-provider "vsphere" {
-  vsphere_server = var.vsphere_server
-  user           = var.vsphere_user
-  password       = var.vsphere_password
-
-  allow_unverified_ssl = true
-}
-
-data "vsphere_datacenter" "dc" {
-  name = var.vsphere_datacenter
-}
-
-data "vsphere_datastore" "datastore" {
-  name          = var.vsphere_datastore
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
-}
-
-data "vsphere_compute_cluster" "cluster" {
-  name          = var.vsphere_cluster
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
-}
-
-data "vsphere_network" "network" {
-  name          = var.vsphere_network
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
-}
-
-data "vsphere_virtual_machine" "template" {
-  name          = "template-vault"
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
-}
-
-data "vsphere_resource_pool" "pool" {
-  name          = "${var.vsphere_cluster}/Resources/${var.vsphere_resource_pool}"
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
+resource "vsphere_virtual_disk" "virtual_disk" {
+  size               = var.vsphere_vault_volume_size
+  type               = "thin"
+  vmdk_path          = "${var.vsphere_folder}-platform-vault/${var.cluster_name}-platform-vault-volume.vmdk"
+  create_directories = true
+  datacenter         = data.vsphere_datacenter.dc.name
+  datastore          = data.vsphere_datastore.datastore.name
 }
 
 resource "vsphere_virtual_machine" "vm" {
-  name             = "platform-vault-${var.cluster_name}"
-  resource_pool_id = "${data.vsphere_resource_pool.pool.id}"
-  datastore_id     = "${data.vsphere_datastore.datastore.id}"
-  folder           = "${var.vsphere_datacenter}/vm/${var.vsphere_folder}"
-
-  num_cpus = 2
-  memory   = 2048
-  guest_id = "${data.vsphere_virtual_machine.template.guest_id}"
+  name                       = "${var.cluster_name}-platform-vault"
+  resource_pool_id           = data.vsphere_resource_pool.pool.id
+  datastore_id               = data.vsphere_datastore.datastore.id
+  folder                     = "${var.vsphere_datacenter}/vm/${var.vsphere_folder}"
+  num_cpus                   = 4
+  memory                     = 8192
+  guest_id                   = data.vsphere_virtual_machine.template.guest_id
   wait_for_guest_net_timeout = -1
-
-  scsi_type = "${data.vsphere_virtual_machine.template.scsi_type}"
+  scsi_type                  = data.vsphere_virtual_machine.template.scsi_type
 
   network_interface {
-    network_id   = data.vsphere_network.network.id
-  } 
+    network_id = data.vsphere_network.network.id
+  }
+
   disk {
+    unit_number      = 0
     label            = "disk0"
-    size             = "${data.vsphere_virtual_machine.template.disks.0.size}"
-    eagerly_scrub    = "${data.vsphere_virtual_machine.template.disks.0.eagerly_scrub}"
-    thin_provisioned = "${data.vsphere_virtual_machine.template.disks.0.thin_provisioned}"
+    size             = var.vsphere_vault_volume_os_size
+    thin_provisioned = true
+  }
+
+  disk {
+    attach       = true
+    unit_number  = 1
+    label        = "disk1"
+    path         = vsphere_virtual_disk.virtual_disk.vmdk_path
+    datastore_id = data.vsphere_datastore.datastore.id
   }
 
   clone {
-    template_uuid = "${data.vsphere_virtual_machine.template.id}"
+    template_uuid = data.vsphere_virtual_machine.template.id
 
-customize {
+    customize {
       linux_options {
-        host_name = "platform-vault-${var.cluster_name}"
+        host_name = "${var.cluster_name}-platform-vault"
         domain    = var.baseDomain
       }
       network_interface {
@@ -71,37 +50,86 @@ customize {
         ipv4_netmask = 24
       }
 
-      ipv4_gateway = "${var.vsphere_network_gateway}"
+      ipv4_gateway = var.vsphere_network_gateway
     }
   }
+}
 
-  lifecycle {
-    ignore_changes = [
-      change_version,
-      imported,
-      storage_policy_id,
+resource "null_resource" "vault_userdata" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "mdtuddm"
+    private_key = "${file("packer/private.key")}"
+    host        = var.vsphere_vault_instance_ip
+  }
+
+  provisioner "file" {
+    source      = "./scripts/userdata.sh"
+    destination = "/tmp/userdata.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "export vault_url=${var.vault_url}",
+      "export vault_volume_path=${var.vault_volume_path}",
+      "export vault_local_mount_path=${var.vault_local_mount_path}",
+      "chmod +x /tmp/userdata.sh",
+      "sudo -E /tmp/userdata.sh"
     ]
   }
 
+  depends_on = [vsphere_virtual_machine.vm]
 }
 
-output "test_ip" {
-  value = "${vsphere_virtual_machine.vm.default_ip_address}"
+resource "null_resource" "vault_unseal" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "mdtuddm"
+    private_key = "${file("packer/private.key")}"
+    host        = var.vsphere_vault_instance_ip
+  }
+
+  provisioner "file" {
+    source      = "./scripts/autounseal.sh"
+    destination = "/tmp/autounseal.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "export vault_local_mount_path=${var.vault_local_mount_path}",
+      "chmod +x /tmp/autounseal.sh",
+      "sudo -E /tmp/autounseal.sh"
+    ]
+  }
+
+  depends_on = [null_resource.vault_userdata]
 }
 
 resource "null_resource" "vault_init" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+
   provisioner "local-exec" {
     command     = var.wait_for_cluster_cmd
     interpreter = var.wait_for_cluster_interpreter
     environment = {
-      ENDPOINT = "http://${var.vsphere_vault_instance_ip}:8200/"
+      ENDPOINT = "http://${var.vsphere_vault_instance_ip}:8200"
     }
   }
-  depends_on = [vsphere_virtual_machine.vm]
+  depends_on = [null_resource.vault_unseal]
 }
 
 module "files" {
-   source  = "github.com/matti/terraform-shell-outputs.git"
-  command = "sleep 80 && ssh -o \"StrictHostKeyChecking no\" vault@${var.vsphere_vault_instance_ip} -i packer/private.key cat /opt/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-"
+  source  = "github.com/matti/terraform-shell-outputs.git"
+  command = "ssh -o \"StrictHostKeyChecking no\" mdtuddm@${var.vsphere_vault_instance_ip} -i packer/private.key cat ${var.vault_local_mount_path}/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-"
   depends_on = [null_resource.vault_init]
 }
