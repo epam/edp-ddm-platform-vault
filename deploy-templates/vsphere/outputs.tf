@@ -1,3 +1,4 @@
 output "vault_root_token" {
-  value = module.files.stdout
+  sensitive = true
+  value     = module.files.stdout
 }
