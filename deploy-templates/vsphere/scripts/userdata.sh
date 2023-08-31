@@ -32,6 +32,19 @@ user_ubuntu() {
   fi
 }
 
+# disable password authorization when connecting to the Vault VM
+restrict_access() {
+  SSHD_CONFIG_PATH="/etc/ssh/sshd_config"
+
+  logger "Modifying the file ${SSHD_CONFIG_PATH}"
+  sed -i 's/^#*UsePAM.*$/UsePAM no/' ${SSHD_CONFIG_PATH}
+  sed -i 's/^#*PermitRootLogin.*$/PermitRootLogin no/' ${SSHD_CONFIG_PATH}
+  sed -i 's/^#*PasswordAuthentication.*$/PasswordAuthentication no/' ${SSHD_CONFIG_PATH}
+  sed -i 's/^#*ChallengeResponseAuthentication.*$/ChallengeResponseAuthentication no/' ${SSHD_CONFIG_PATH}
+  logger "A file ${SSHD_CONFIG_PATH} modification is complete. Reloading the ssh service"
+  systemctl reload ssh
+}
+
 if [[ ! -z ${APT_GET} ]]; then
   logger "Setting up user ${USER} for Debian/Ubuntu"
   user_ubuntu
@@ -148,3 +161,5 @@ EOF
 logger "Starting Vault service"
 systemctl enable vault
 systemctl restart vault
+
+restrict_access
