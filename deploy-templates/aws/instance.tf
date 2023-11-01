@@ -17,7 +17,6 @@ resource "aws_instance" "vault" {
 
   vpc_security_group_ids = [
     aws_security_group.vault.id,
-    aws_security_group.custom.id,
   ]
 
   ebs_optimized        = false
@@ -28,40 +27,6 @@ resource "aws_instance" "vault" {
   })
 
   user_data = data.template_file.vault.rendered
-
-}
-
-resource "aws_security_group" "custom" {
-  name        = "vault-kms-unseal-${var.cluster_name}-custom"
-  description = "Custom vault access"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = merge(local.tags, {
-    "Name" = "platform-vault-${var.cluster_name}-custom"
-  })
-
-  # SSH
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = var.custom_ingress_rules_cidrs
-  }
-
-  # Vault Client Traffic
-  ingress {
-    from_port   = 8200
-    to_port     = 8200
-    protocol    = "tcp"
-    cidr_blocks = var.custom_ingress_rules_cidrs
-  }
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = var.custom_ingress_rules_cidrs
-  }
 
 }
 
@@ -105,12 +70,21 @@ resource "aws_security_group" "vault" {
 }
 
 resource "null_resource" "user_data_status_check" {
+  provisioner "remote-exec" {
+    connection {
+      host        = aws_eip.vault_ip.public_ip
+      user        = "ubuntu"
+      private_key = file("./private.key")
+    }
+
+    inline = ["echo 'You shall pass!'"]
+  }
 
   provisioner "local-exec" {
     on_failure  = fail
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
-          echo -e "\x1B[31m wait for few minute for instance warm up, adjust accordingly \x1B[0m"
+          echo -e "\x1B[31m Little warm up \x1B[0m"
           timeout ${var.connection_timeout}s bash -c 'while ! nc -w 2 ${aws_eip.vault_ip.public_ip} 22 > /dev/null ; do echo \"Waiting for port SSH open\"; sleep 5; done' \
           && ssh -o 'StrictHostKeyChecking no' -o 'ConnectionAttempts 5' -i private.key  ubuntu@${aws_eip.vault_ip.public_ip} timeout ${var.connection_timeout}s bash -c "'while [ ! -e /tmp/signal ] ; do echo "user_data signal has not found yet"; sleep 5; done'"
           if [ $? -eq 0 ]; then

@@ -22,18 +22,6 @@ variable "cluster_name" {
   default     = "main"
 }
 
-variable "custom_ingress_rules_cidrs" {
-  description = <<EOD
-List of CIDRs for ingress rules. |
-**Optional** |
-```
-["85.223.209.0/24"]
-```
-EOD
-  type        = list(any)
-  default     = ["85.223.209.0/24"]
-}
-
 variable "wait_for_cluster_interpreter" {
   description = "Custom local-exec command line interpreter for the command to determining if the eks cluster is healthy."
   type        = list(string)

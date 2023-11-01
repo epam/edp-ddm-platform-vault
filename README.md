@@ -38,7 +38,6 @@
 | [aws_kms_key.vault](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
 | [aws_route_table.route](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table) | resource |
 | [aws_route_table_association.route](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association) | resource |
-| [aws_security_group.custom](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_security_group.vault](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_subnet.public_subnet](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet) | resource |
 | [aws_volume_attachment.vault_ebs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/volume_attachment) | resource |
@@ -67,7 +66,6 @@
 | <a name="input_baseDomain"></a> [baseDomain](#input\_baseDomain) | baseDomain | `string` | `"mdtu-ddm.projects.epam.com"` | no |
 | <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Cluster name | `string` | `"main"` | no |
 | <a name="input_connection_timeout"></a> [connection\_timeout](#input\_connection\_timeout) | The amount of seconds while terraform will attempt to connect to the host to complete null resources. \|<br>**Optional** \| | `number` | `600` | no |
-| <a name="input_custom_ingress_rules_cidrs"></a> [custom\_ingress\_rules\_cidrs](#input\_custom\_ingress\_rules\_cidrs) | List of CIDRs for ingress rules. \|<br>**Optional** \|<pre>["85.223.209.0/24"]</pre> | `list` | <pre>[<br>  "85.223.209.0/24"<br>]</pre> | no |
 | <a name="input_ebs_iops"></a> [ebs\_iops](#input\_ebs\_iops) | The amount of IOPS to provision for the disk. \|<br>Only valid for `type` of `io1`, `io2` or `gp3`. \|<br>The details you can find [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html). \|<br>**Optional** \| | `number` | `0` | no |
 | <a name="input_ebs_size"></a> [ebs\_size](#input\_ebs\_size) | The size of the drive in GiBs. \|<br>**Optional** \| | `number` | `10` | no |
 | <a name="input_ebs_throughput"></a> [ebs\_throughput](#input\_ebs\_throughput) | The throughput that the volume supports, in MiB/s. \|<br>Only valid for `type` of `gp3`. \|<br>The details you can find [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html). \|<br>**Optional** \| | `number` | `200` | no |
