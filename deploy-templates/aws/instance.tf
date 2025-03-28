@@ -22,11 +22,21 @@ resource "aws_instance" "vault" {
   ebs_optimized        = false
   iam_instance_profile = aws_iam_instance_profile.vault-kms-unseal.id
 
+  metadata_options {
+    http_tokens = "required"
+  }
+
   tags = merge(local.tags, {
     "Name" = "platform-vault-${var.cluster_name}"
   })
 
-  user_data = data.template_file.vault.rendered
+  user_data = templatefile("${path.module}/scripts/userdata.tpl", {
+    kms_key                 = aws_kms_key.vault.id
+    vault_url               = var.vault_url
+    aws_region              = var.aws_region
+    vault_local_mount_path  = var.vault_local_mount_path
+    vault_volume_mount_path = var.vault_volume_mount_path
+  })
 
 }
 
@@ -44,21 +54,27 @@ resource "aws_security_group" "vault" {
     to_port     = 8200
     protocol    = "tcp"
     cidr_blocks = ["${data.aws_nat_gateway.cluster_ip.public_ip}/32"]
-
   }
 
   ingress {
     from_port   = 8200
     to_port     = 8200
     protocol    = "tcp"
-    cidr_blocks = ["${chomp(data.http.external_ip.body)}/32"]
+    cidr_blocks = ["${chomp(data.http.external_ip.response_body)}/32"]
+  }
+
+  ingress {
+    from_port   = 8200
+    to_port     = 8200
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["${chomp(data.http.external_ip.body)}/32"]
+    cidr_blocks = ["${chomp(data.http.external_ip.response_body)}/32"]
   }
 
   egress {
@@ -112,7 +128,13 @@ resource "null_resource" "backup_and_migrate_vault_data" {
   count = var.enable-vault_data-migration_to_ebs ? 1 : 0
 
   provisioner "remote-exec" {
-    inline = [data.template_file.backup_and_migrate_data.rendered]
+    inline = [templatefile("${path.module}/scripts/backup_and_migrate.tpl", {
+      kms_key                 = aws_kms_key.vault.id
+      vault_url               = var.vault_url
+      aws_region              = var.aws_region
+      vault_local_mount_path  = var.vault_local_mount_path
+      vault_volume_mount_path = var.vault_volume_mount_path
+    })]
 
     connection {
       type        = "ssh"
@@ -129,8 +151,52 @@ resource "null_resource" "backup_and_migrate_vault_data" {
   ]
 }
 
-module "files" {
+module "root_token" {
   source     = "github.com/matti/terraform-shell-outputs.git"
   command    = "timeout ${var.connection_timeout}s bash -c 'while ! nc -w 2 ${aws_eip.vault_ip.public_ip} 22 > /dev/null ; do echo \"Waiting for SSH port open\" > /dev/null; sleep 5; done' && ssh -o \"StrictHostKeyChecking no\" -o 'ConnectionAttempts 5' ubuntu@${aws_eip.vault_ip.public_ip} -i private.key cat ${var.vault_local_mount_path}/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-"
+  depends_on = [null_resource.vault_init]
+}
+
+module "kes_role_id" {
+  source     = "github.com/matti/terraform-shell-outputs.git"
+  command    = <<EOT
+          timeout ${var.connection_timeout}s bash -c '
+          while ! nc -w 2 ${aws_eip.vault_ip.public_ip} 22 > /dev/null ; do
+              sleep 5;
+          done' && ssh -o 'StrictHostKeyChecking no' \
+                 -o 'ConnectionAttempts 5' \
+                 -i private.key  ubuntu@${aws_eip.vault_ip.public_ip} \
+                  timeout ${var.connection_timeout}s bash -c '
+          while [ ! -e ${var.vault_local_mount_path}/vault/kes_role_id ] ; do
+              sleep 5;
+          done' && ssh -o "StrictHostKeyChecking no" \
+                       -o "ConnectionAttempts 5" \
+                       -i private.key \
+                       ubuntu@${aws_eip.vault_ip.public_ip} \
+                       cat ${var.vault_local_mount_path}/vault/kes_role_id
+          '
+  EOT
+  depends_on = [null_resource.vault_init]
+}
+
+module "kes_secret_id" {
+  source     = "github.com/matti/terraform-shell-outputs.git"
+  command    = <<EOT
+          timeout ${var.connection_timeout}s bash -c '
+          while ! nc -w 2 ${aws_eip.vault_ip.public_ip} 22 > /dev/null ; do
+              sleep 5;
+          done' && ssh -o 'StrictHostKeyChecking no' \
+                 -o 'ConnectionAttempts 5' \
+                 -i private.key  ubuntu@${aws_eip.vault_ip.public_ip} \
+                  timeout ${var.connection_timeout}s bash -c '
+          while [ ! -e ${var.vault_local_mount_path}/vault/kes_secret_id ] ; do
+              sleep 5;
+          done' && ssh -o "StrictHostKeyChecking no" \
+                       -o "ConnectionAttempts 5" \
+                       -i private.key \
+                       ubuntu@${aws_eip.vault_ip.public_ip} \
+                       cat ${var.vault_local_mount_path}/vault/kes_secret_id
+          '
+  EOT
   depends_on = [null_resource.vault_init]
 }

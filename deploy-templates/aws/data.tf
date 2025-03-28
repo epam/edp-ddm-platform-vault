@@ -49,27 +49,3 @@ data "aws_nat_gateway" "cluster_ip" {
     values = ["${var.cluster_name}-*"]
   }
 }
-
-data "template_file" "vault" {
-  template = file("./scripts/userdata.tpl")
-
-  vars = {
-    kms_key                 = aws_kms_key.vault.id
-    vault_url               = var.vault_url
-    aws_region              = var.aws_region
-    vault_local_mount_path  = var.vault_local_mount_path
-    vault_volume_mount_path = var.vault_volume_mount_path
-  }
-}
-
-data "template_file" "backup_and_migrate_data" {
-  template = file("./scripts/backup_and_migrate.tpl")
-
-  vars = {
-    kms_key                 = aws_kms_key.vault.id
-    vault_url               = var.vault_url
-    aws_region              = var.aws_region
-    vault_local_mount_path  = var.vault_local_mount_path
-    vault_volume_mount_path = var.vault_volume_mount_path
-  }
-}

@@ -18,8 +18,9 @@ data "vsphere_network" "network" {
 }
 
 data "vsphere_virtual_machine" "template" {
-  name          = var.vsphere_vault_template_name
+  name          = "${var.vsphere_vault_template_name}-${var.vsphere_folder}"
   datacenter_id = data.vsphere_datacenter.dc.id
+  folder        = var.vsphere_folder
 }
 
 data "vsphere_resource_pool" "pool" {

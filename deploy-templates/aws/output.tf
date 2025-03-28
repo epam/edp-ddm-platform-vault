@@ -6,9 +6,24 @@ VAULT
 }
 
 output "vault_root_token" {
-  value = module.files.stdout
+  sensitive = true
+  value     = module.root_token.stdout
+}
+
+output "vault_kes_role_id" {
+  sensitive = true
+  value     = module.kes_role_id.stdout
+}
+
+output "vault_kes_secret_id" {
+  sensitive = true
+  value     = module.kes_secret_id.stdout
 }
 
 output "vault_elastic_ip" {
   value = aws_eip.vault_ip.public_ip
+}
+
+output "vault_private_ip" {
+  value = aws_instance.vault.private_ip
 }

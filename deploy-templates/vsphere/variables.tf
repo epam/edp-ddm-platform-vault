@@ -113,3 +113,9 @@ variable "vault_local_mount_path" {
   type    = string
   default = "/apps"
 }
+
+variable "connection_timeout" {
+  description = "Timeout for connections to Vault"
+  type        = number
+  default     = 200
+}

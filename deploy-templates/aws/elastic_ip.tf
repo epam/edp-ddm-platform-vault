@@ -1,5 +1,5 @@
 resource "aws_eip" "vault_ip" {
-  vpc = true
+  domain = "vpc"
   tags = merge(local.tags, {
     "Name" = "platform-vault-${var.cluster_name}"
   })

@@ -11,7 +11,7 @@ resource "vsphere_virtual_machine" "vm" {
   name                       = "${var.cluster_name}-platform-vault"
   resource_pool_id           = data.vsphere_resource_pool.pool.id
   datastore_id               = data.vsphere_datastore.datastore.id
-  folder                     = "${var.vsphere_datacenter}/vm/${var.vsphere_folder}"
+  folder                     = var.vsphere_folder
   num_cpus                   = 4
   memory                     = 8192
   guest_id                   = data.vsphere_virtual_machine.template.guest_id
@@ -131,5 +131,49 @@ resource "null_resource" "vault_init" {
 module "files" {
   source  = "github.com/matti/terraform-shell-outputs.git"
   command = "ssh -o \"StrictHostKeyChecking no\" mdtuddm@${var.vsphere_vault_instance_ip} -i packer/private.key cat ${var.vault_local_mount_path}/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-"
+  depends_on = [null_resource.vault_init]
+}
+
+module "kes_role_id" {
+  source     = "github.com/matti/terraform-shell-outputs.git"
+  command    = <<EOT
+          timeout ${var.connection_timeout}s bash -c '
+          while ! nc -w 2 ${var.vsphere_vault_instance_ip} 22 > /dev/null ; do
+              sleep 5;
+          done' && ssh -o 'StrictHostKeyChecking no' \
+                 -o 'ConnectionAttempts 5' \
+                 -i ./packer/private.key  mdtuddm@${var.vsphere_vault_instance_ip} \
+                  timeout ${var.connection_timeout}s bash -c '
+          while [ ! -e ${var.vault_local_mount_path}/vault/kes_role_id ] ; do
+              sleep 5;
+          done' && ssh -o "StrictHostKeyChecking no" \
+                       -o "ConnectionAttempts 5" \
+                       -i ./packer/private.key  \
+                       mdtuddm@${var.vsphere_vault_instance_ip} \
+                       cat ${var.vault_local_mount_path}/vault/kes_role_id
+          '
+  EOT
+  depends_on = [null_resource.vault_init]
+}
+
+module "kes_secret_id" {
+  source     = "github.com/matti/terraform-shell-outputs.git"
+  command    = <<EOT
+          timeout ${var.connection_timeout}s bash -c '
+          while ! nc -w 2 ${var.vsphere_vault_instance_ip} 22 > /dev/null ; do
+              sleep 5;
+          done' && ssh -o 'StrictHostKeyChecking no' \
+                 -o 'ConnectionAttempts 5' \
+                 -i ./packer/private.key   mdtuddm@${var.vsphere_vault_instance_ip} \
+                  timeout ${var.connection_timeout}s bash -c '
+          while [ ! -e ${var.vault_local_mount_path}/vault/kes_secret_id ] ; do
+              sleep 5;
+          done' && ssh -o "StrictHostKeyChecking no" \
+                       -o "ConnectionAttempts 5" \
+                       -i ./packer/private.key  \
+                       mdtuddm@${var.vsphere_vault_instance_ip} \
+                       cat ${var.vault_local_mount_path}/vault/kes_secret_id
+          '
+  EOT
   depends_on = [null_resource.vault_init]
 }

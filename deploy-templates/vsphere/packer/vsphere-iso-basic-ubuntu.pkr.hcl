@@ -8,7 +8,7 @@ source "vsphere-iso" "this" {
   cluster                 = var.vsphere_cluster
   insecure_connection     = true
 
-  vm_name                 = var.vsphere_template_name
+  vm_name                 = "${var.vsphere_template_name}-${var.vsphere_folder}"
   guest_os_type           = "ubuntu64Guest"
 
   ssh_username            = var.ssh_username

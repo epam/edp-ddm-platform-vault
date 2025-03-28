@@ -27,7 +27,8 @@ USER="vault"
 GROUP="vault"
 COMMENT="Hashicorp vault user"
 
-HOME="/srv/vault"
+export HOME="/srv/vault"
+mkdir $HOME
 
 # Detect package management system.
 APT_GET=$(which apt-get 2>/dev/null)
@@ -188,12 +189,19 @@ if [ ! -f "${vault_local_mount_path}/vault/token" ]; then
   vault policy write kes-policy /home/ubuntu/kes-policy.hcl
   vault write auth/approle/role/kes-role token_num_uses=0  secret_id_num_uses=0  period=5m
   vault write auth/approle/role/kes-role policies=kes-policy
-  vault read auth/approle/role/kes-role/role-id
-  vault write -f auth/approle/role/kes-role/secret-id
 
   vault write -f transit/keys/autounseal
   vault policy write autounseal /home/ubuntu/autounseal.hcl
   vault token create -policy="autounseal" -wrap-ttl=120 > "${vault_local_mount_path}/vault/token"
+fi
+
+if [ ! -f "${vault_local_mount_path}/vault/kes_role_id" ]; then
+  export VAULT_TOKEN="$(cat ${vault_local_mount_path}/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-)"
+  vault read auth/approle/role/kes-role/role-id | grep -w "role_id" | awk '{print $2}' > "${vault_local_mount_path}/vault/kes_role_id"
+fi
+if [ ! -f "${vault_local_mount_path}/vault/kes_secret_id" ]; then
+  export VAULT_TOKEN="$(cat ${vault_local_mount_path}/vault/keys | grep Root | awk -F : {'print $2'} | cut -c2-)"
+  vault write -f auth/approle/role/kes-role/secret-id | grep -w "secret_id" | awk '{print $2}' > "${vault_local_mount_path}/vault/kes_secret_id"
 fi
 
 systemctl is-active vault && touch /tmp/signal
